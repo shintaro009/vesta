@@ -8,7 +8,7 @@ with anti-cheat software. It only stores local profile files.
 
 - Organize weapon, knife, glove, and other cosmetic ideas by category.
 - Store an item name, Wear/Float value (0.00–1.00), and a StatTrak flag.
-- Add and remove entries from the current loadout.
+- Add and remove entries from the current loadout.\n- Load curated presets inspired by s1mple, ZywOo, donk, m0NESY, NiKo, and ropz. These are fan-made style presets, not claims about verified player inventories.
 - Save and load profiles as portable \`.vsl\` files.
 
 ## Build
