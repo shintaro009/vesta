@@ -1,26 +1,27 @@
-name: Build
+name: Build EXE
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  windows:
-    runs-on: windows-2022
+  build:
+    runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v5
-      - name: Configure
-        run: cmake --preset release
-      - name: Build
-        run: cmake --build --preset release --parallel
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: vesta-windows-x64
-          path: build/bin/vesta.exe
-          if-no-files-found: error
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build Project
+      run: msbuild /p:Configuration=Release /p:Platform=x64
+
+    - name: Upload EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: Compiled-Exe
+        path: |
+          **/*.exe
