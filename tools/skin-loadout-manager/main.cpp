@@ -115,6 +115,7 @@ const std::vector<SkinPreset>& presets() {
     };
     return data;
 }
+void refreshList();
 void applyPreset() {
     int index = (int)SendMessageW(g_preset, CB_GETCURSEL, 0, 0);
     if (index < 0 || index >= (int)presets().size()) return;
