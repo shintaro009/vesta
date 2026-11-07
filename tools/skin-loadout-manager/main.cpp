@@ -17,7 +17,8 @@ namespace {
 constexpr int IDC_CATEGORY = 1001, IDC_ITEM = 1002, IDC_WEAR = 1003;
 constexpr int IDC_STATTRAK = 1004, IDC_ADD = 1005, IDC_REMOVE = 1006;
 constexpr int IDC_SAVE = 1007, IDC_LOAD = 1008, IDC_CLEAR = 1009;
-constexpr int IDC_LIST = 1010, IDC_STATUS = 1011;\nconstexpr int IDC_PRESET = 1012, IDC_APPLY_PRESET = 1013;
+constexpr int IDC_LIST = 1010, IDC_STATUS = 1011;
+constexpr int IDC_PRESET = 1012, IDC_APPLY_PRESET = 1013;
 
 struct LoadoutItem {
     std::wstring category;
@@ -248,7 +249,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (i != LB_ERR && i < (int)g_items.size()) g_items.erase(g_items.begin() + i);
             refreshList(); return 0;
         }
-        case IDC_APPLY_PRESET: applyPreset(); return 0;\n        case IDC_SAVE: saveProfile(hwnd); return 0;
+        case IDC_APPLY_PRESET: applyPreset(); return 0;
+        case IDC_SAVE: saveProfile(hwnd); return 0;
         case IDC_LOAD: loadProfile(hwnd); return 0;
         case IDC_CLEAR: g_items.clear(); refreshList(); return 0;
         }
