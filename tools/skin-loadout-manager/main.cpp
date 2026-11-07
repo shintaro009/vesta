@@ -19,6 +19,7 @@ constexpr int IDC_STATTRAK = 1004, IDC_ADD = 1005, IDC_REMOVE = 1006;
 constexpr int IDC_SAVE = 1007, IDC_LOAD = 1008, IDC_CLEAR = 1009;
 constexpr int IDC_LIST = 1010, IDC_STATUS = 1011;
 constexpr int IDC_PRESET = 1012, IDC_APPLY_PRESET = 1013;
+constexpr int IDC_TABS = 1014, IDC_LIBRARY_LIST = 1015, IDC_LIBRARY_ADD = 1016;
 
 struct LoadoutItem {
     std::wstring category;
@@ -27,7 +28,22 @@ struct LoadoutItem {
     bool stattrak = false;
 };
 std::vector<LoadoutItem> g_items;
-HWND g_category{}, g_item{}, g_wear{}, g_stattrak{}, g_list{}, g_status{}, g_preset{};
+HWND g_category{}, g_item{}, g_wear{}, g_stattrak{}, g_list{}, g_status{}, g_preset{}, g_tabs{}, g_library_list{};
+std::vector<HWND> g_loadout_controls, g_library_controls;
+bool g_building_library = false;
+struct CatalogItem { const wchar_t* category; const wchar_t* name; };
+constexpr CatalogItem g_catalog[] = {
+    {L"Rifle", L"AK-47 | Redline"}, {L"Rifle", L"AK-47 | Neon Rider"},
+    {L"Rifle", L"AK-47 | Vulcan"}, {L"Rifle", L"M4A1-S | Printstream"},
+    {L"Rifle", L"M4A1-S | Decimator"}, {L"Rifle", L"M4A4 | Howl"},
+    {L"Sniper", L"AWP | Asiimov"}, {L"Sniper", L"AWP | Dragon Lore"},
+    {L"Sniper", L"AWP | Neo-Noir"}, {L"Pistol", L"USP-S | Kill Confirmed"},
+    {L"Pistol", L"USP-S | Printstream"}, {L"Pistol", L"Glock-18 | Fade"},
+    {L"Pistol", L"Desert Eagle | Blaze"}, {L"Pistol", L"Desert Eagle | Printstream"},
+    {L"Knife", L"Karambit | Doppler"}, {L"Knife", L"Butterfly Knife | Fade"},
+    {L"Knife", L"M9 Bayonet | Doppler"}, {L"Gloves", L"Sport Gloves | Vice"},
+    {L"Gloves", L"Sport Gloves | Pandora's Box"}, {L"Gloves", L"Specialist Gloves | Fade"}
+};
 
 std::wstring windowText(HWND h) {
     int n = GetWindowTextLengthW(h);
@@ -194,42 +210,61 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_CREATE: {
         HFONT font = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-        addControl(hwnd, L"STATIC", L"Category", 0, 18, 18, 90, 22, 0);
-        addControl(hwnd, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, 18, 42, 180, 240, IDC_CATEGORY);
+        addControl(hwnd, L"STATIC", L"Category", 0, 18, 54, 90, 22, 0);
+        addControl(hwnd, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, 18, 78, 180, 240, IDC_CATEGORY);
         g_category = GetDlgItem(hwnd, IDC_CATEGORY);
         for (const wchar_t* s : {L"Rifle", L"Pistol", L"SMG", L"Shotgun", L"Sniper", L"Machine gun", L"Knife", L"Gloves", L"Other"})
             SendMessageW(g_category, CB_ADDSTRING, 0, (LPARAM)s);
         SendMessageW(g_category, CB_SETCURSEL, 0, 0);
-        addControl(hwnd, L"STATIC", L"Skin / item name", 0, 216, 18, 180, 22, 0);
-        addControl(hwnd, L"EDIT", L"", WS_BORDER | ES_AUTOHSCROLL, 216, 42, 300, 26, IDC_ITEM);
+        addControl(hwnd, L"STATIC", L"Skin / item name", 0, 216, 54, 180, 22, 0);
+        addControl(hwnd, L"EDIT", L"", WS_BORDER | ES_AUTOHSCROLL, 216, 78, 300, 26, IDC_ITEM);
         g_item = GetDlgItem(hwnd, IDC_ITEM);
-        addControl(hwnd, L"STATIC", L"Wear / Float (0.00 - 1.00)", 0, 18, 84, 220, 22, 0);
-        addControl(hwnd, L"EDIT", L"0.0000", WS_BORDER | ES_AUTOHSCROLL, 18, 108, 130, 26, IDC_WEAR);
+        addControl(hwnd, L"STATIC", L"Wear / Float (0.00 - 1.00)", 0, 18, 120, 220, 22, 0);
+        addControl(hwnd, L"EDIT", L"0.0000", WS_BORDER | ES_AUTOHSCROLL, 18, 144, 130, 26, IDC_WEAR);
         g_wear = GetDlgItem(hwnd, IDC_WEAR);
-        addControl(hwnd, L"BUTTON", L"StatTrak", BS_AUTOCHECKBOX, 170, 108, 120, 26, IDC_STATTRAK);
+        addControl(hwnd, L"BUTTON", L"StatTrak", BS_AUTOCHECKBOX, 170, 144, 120, 26, IDC_STATTRAK);
         g_stattrak = GetDlgItem(hwnd, IDC_STATTRAK);
-        addControl(hwnd, L"BUTTON", L"Add item", BS_PUSHBUTTON, 320, 106, 92, 30, IDC_ADD);
-        addControl(hwnd, L"STATIC", L"Pro player-inspired preset", 0, 18, 150, 210, 22, 0);
-        addControl(hwnd, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, 18, 174, 250, 180, IDC_PRESET);
+        addControl(hwnd, L"BUTTON", L"Add item", BS_PUSHBUTTON, 320, 142, 92, 30, IDC_ADD);
+        addControl(hwnd, L"STATIC", L"Pro player-inspired preset", 0, 18, 186, 210, 22, 0);
+        addControl(hwnd, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, 18, 210, 250, 180, IDC_PRESET);
         g_preset = GetDlgItem(hwnd, IDC_PRESET);
         for (const auto& p : presets()) SendMessageW(g_preset, CB_ADDSTRING, 0, (LPARAM)p.player);
         SendMessageW(g_preset, CB_SETCURSEL, 0, 0);
-        addControl(hwnd, L"BUTTON", L"Apply preset", BS_PUSHBUTTON, 286, 172, 112, 30, IDC_APPLY_PRESET);
-        addControl(hwnd, L"STATIC", L"Current loadout", 0, 18, 214, 160, 22, 0);
-        addControl(hwnd, L"LISTBOX", L"", WS_BORDER | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT, 18, 240, 498, 180, IDC_LIST);
+        addControl(hwnd, L"BUTTON", L"Apply preset", BS_PUSHBUTTON, 286, 208, 112, 30, IDC_APPLY_PRESET);
+        addControl(hwnd, L"STATIC", L"Current loadout", 0, 18, 250, 160, 22, 0);
+        addControl(hwnd, L"LISTBOX", L"", WS_BORDER | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT, 18, 276, 498, 150, IDC_LIST);
         g_list = GetDlgItem(hwnd, IDC_LIST);
-        addControl(hwnd, L"BUTTON", L"Remove selected", BS_PUSHBUTTON, 18, 432, 130, 30, IDC_REMOVE);
-        addControl(hwnd, L"BUTTON", L"Save profile", BS_PUSHBUTTON, 166, 432, 110, 30, IDC_SAVE);
-        addControl(hwnd, L"BUTTON", L"Load profile", BS_PUSHBUTTON, 294, 432, 110, 30, IDC_LOAD);
-        addControl(hwnd, L"BUTTON", L"Clear all", BS_PUSHBUTTON, 422, 432, 94, 30, IDC_CLEAR);
+        addControl(hwnd, L"BUTTON", L"Remove selected", BS_PUSHBUTTON, 18, 438, 130, 30, IDC_REMOVE);
+        addControl(hwnd, L"BUTTON", L"Save profile", BS_PUSHBUTTON, 166, 438, 110, 30, IDC_SAVE);
+        addControl(hwnd, L"BUTTON", L"Load profile", BS_PUSHBUTTON, 294, 438, 110, 30, IDC_LOAD);
+        addControl(hwnd, L"BUTTON", L"Clear all", BS_PUSHBUTTON, 422, 438, 94, 30, IDC_CLEAR);
         g_status = CreateWindowExW(0, L"STATIC", L"Items in loadout: 0", WS_CHILD | WS_VISIBLE,
-                                   18, 474, 498, 24, hwnd, (HMENU)IDC_STATUS, GetModuleHandleW(nullptr), nullptr);
+                                   18, 476, 498, 24, hwnd, (HMENU)IDC_STATUS, GetModuleHandleW(nullptr), nullptr);
+        g_loadout_controls.push_back(g_status);
+
+        g_building_library = true;
+        addControl(hwnd, L"STATIC", L"Browse the built-in reference catalog. Select an item and add it to your local loadout.",
+                   0, 18, 58, 490, 34, 0);
+        addControl(hwnd, L"LISTBOX", L"", WS_BORDER | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT,
+                   18, 100, 498, 310, IDC_LIBRARY_LIST);
+        g_library_list = GetDlgItem(hwnd, IDC_LIBRARY_LIST);
+        for (const auto& item : g_catalog) {
+            std::wstring label = std::wstring(L"[") + item.category + L"] " + item.name;
+            SendMessageW(g_library_list, LB_ADDSTRING, 0, (LPARAM)label.c_str());
+        }
+        addControl(hwnd, L"BUTTON", L"Add selected to loadout", BS_PUSHBUTTON,
+                   18, 424, 190, 32, IDC_LIBRARY_ADD);
+        g_building_library = false;
+        showPage(0);
         for (HWND child = GetWindow(hwnd, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
             SendMessageW(child, WM_SETFONT, (WPARAM)font, TRUE);
         return 0;
     }
     case WM_COMMAND:
         switch (LOWORD(wp)) {
+        case IDC_LIBRARY_LIST:
+            if (HIWORD(wp) == LBN_DBLCLK) { addCatalogSelection(); return 0; }
+            break;
         case IDC_ADD: {
             std::wstring name = windowText(g_item);
             if (name.empty()) { status(L"Enter a skin or item name first."); return 0; }
