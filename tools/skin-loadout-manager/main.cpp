@@ -1,5 +1,3 @@
-#define UNICODE
-#define _UNICODE
 #include <windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -153,8 +151,10 @@ void refreshList() {
 }
 void addControl(HWND parent, const wchar_t* cls, const wchar_t* text, DWORD style,
                 int x, int y, int w, int h, int id) {
-    CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style, x, y, w, h,
+    HWND control = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style, x, y, w, h,
                     parent, (HMENU)(INT_PTR)id, GetModuleHandleW(nullptr), nullptr);
+    if (control && id != IDC_TABS)
+        (g_building_library ? g_library_controls : g_loadout_controls).push_back(control);
 }
 void saveProfile(HWND owner) {
     wchar_t path[MAX_PATH] = L"vesta-loadout.vsl";
@@ -206,10 +206,31 @@ void loadProfile(HWND owner) {
     refreshList();
     status(L"Loadout profile loaded.");
 }
+void showPage(int page) {
+    for (HWND h : g_loadout_controls) ShowWindow(h, page == 1 ? SW_SHOW : SW_HIDE);
+    for (HWND h : g_library_controls) ShowWindow(h, page == 0 ? SW_SHOW : SW_HIDE);
+}
+void addCatalogSelection() {
+    int index = (int)SendMessageW(g_library_list, LB_GETCURSEL, 0, 0);
+    if (index == LB_ERR || index < 0 || index >= (int)(sizeof(g_catalog) / sizeof(g_catalog[0]))) {
+        status(L"Select an item from the catalog first."); return;
+    }
+    const auto& item = g_catalog[index];
+    g_items.push_back({item.category, item.name, 0.0, false});
+    refreshList();
+    status(std::wstring(item.name) + L" added to local loadout.");
+}
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_CREATE: {
         HFONT font = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        g_tabs = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+                                 18, 12, 498, 34, hwnd, (HMENU)(INT_PTR)IDC_TABS,
+                                 GetModuleHandleW(nullptr), nullptr);
+        TCITEMW tab{}; tab.mask = TCIF_TEXT;
+        tab.pszText = const_cast<wchar_t*>(L"Skin Library"); TabCtrl_InsertItem(g_tabs, 0, &tab);
+        tab.pszText = const_cast<wchar_t*>(L"Loadout"); TabCtrl_InsertItem(g_tabs, 1, &tab);
+        g_building_library = false;
         addControl(hwnd, L"STATIC", L"Category", 0, 18, 54, 90, 22, 0);
         addControl(hwnd, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, 18, 78, 180, 240, IDC_CATEGORY);
         g_category = GetDlgItem(hwnd, IDC_CATEGORY);
@@ -260,11 +281,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             SendMessageW(child, WM_SETFONT, (WPARAM)font, TRUE);
         return 0;
     }
+    case WM_NOTIFY:
+        if (((LPNMHDR)lp)->hwndFrom == g_tabs && ((LPNMHDR)lp)->code == TCN_SELCHANGE) {
+            showPage(TabCtrl_GetCurSel(g_tabs)); return 0;
+        }
+        break;
     case WM_COMMAND:
         switch (LOWORD(wp)) {
         case IDC_LIBRARY_LIST:
             if (HIWORD(wp) == LBN_DBLCLK) { addCatalogSelection(); return 0; }
             break;
+        case IDC_LIBRARY_ADD: addCatalogSelection(); return 0;
         case IDC_ADD: {
             std::wstring name = windowText(g_item);
             if (name.empty()) { status(L"Enter a skin or item name first."); return 0; }
