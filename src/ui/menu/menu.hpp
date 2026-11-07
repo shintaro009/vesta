@@ -6,6 +6,7 @@
 
 namespace ui
 {
+void draw_skin_loadouts_page();
 class menu_t
 {
 public:
