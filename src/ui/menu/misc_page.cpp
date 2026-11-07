@@ -535,13 +535,18 @@ void draw_configs_tab()
 {
     draw_config_library();
 }
+
+void draw_skin_loadouts_tab()
+{
+    draw_skin_loadouts_page();
+}
 } // namespace
 
 void menu_t::draw_misc()
 {
     static constexpr void (*tab_pages[])(){draw_general_tab,  draw_overlay_tab, draw_movement_tab, draw_walk_bot_tab,
-                                           draw_grenades_tab, draw_lua_tab,     draw_configs_tab};
-    static constexpr const char* tabs[]{"General", "Overlay", "Movement", "Walk Bot", "Grenades", "Lua API", "Configs"};
+                                           draw_grenades_tab, draw_lua_tab,     draw_configs_tab, draw_skin_loadouts_tab};
+    static constexpr const char* tabs[]{"General", "Overlay", "Movement", "Walk Bot", "Grenades", "Lua API", "Configs", "Loadouts"};
     static_assert(std::size(tabs) == std::size(tab_pages));
     ImGui::SetCursorPos({24.0f, 24.0f});
     for (int i = 0; i < static_cast<int>(std::size(tabs)); ++i)
