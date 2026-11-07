@@ -17,7 +17,7 @@ namespace {
 constexpr int IDC_CATEGORY = 1001, IDC_ITEM = 1002, IDC_WEAR = 1003;
 constexpr int IDC_STATTRAK = 1004, IDC_ADD = 1005, IDC_REMOVE = 1006;
 constexpr int IDC_SAVE = 1007, IDC_LOAD = 1008, IDC_CLEAR = 1009;
-constexpr int IDC_LIST = 1010, IDC_STATUS = 1011;
+constexpr int IDC_LIST = 1010, IDC_STATUS = 1011;\nconstexpr int IDC_PRESET = 1012, IDC_APPLY_PRESET = 1013;
 
 struct LoadoutItem {
     std::wstring category;
@@ -26,7 +26,7 @@ struct LoadoutItem {
     bool stattrak = false;
 };
 std::vector<LoadoutItem> g_items;
-HWND g_category{}, g_item{}, g_wear{}, g_stattrak{}, g_list{}, g_status{};
+HWND g_category{}, g_item{}, g_wear{}, g_stattrak{}, g_list{}, g_status{}, g_preset{};
 
 std::wstring windowText(HWND h) {
     int n = GetWindowTextLengthW(h);
@@ -54,6 +54,73 @@ std::wstring fromUtf8(const std::string& s) {
     return out;
 }
 void status(const std::wstring& s) { SetWindowTextW(g_status, s.c_str()); }
+struct SkinPreset { const wchar_t* player; std::vector<LoadoutItem> items; };
+const std::vector<SkinPreset>& presets() {
+    static const std::vector<SkinPreset> data = {
+        {L"s1mple-inspired", {
+            {L"Rifle", L"AK-47 | Case Hardened", 0.08, false},
+            {L"Rifle", L"M4A1-S | Printstream", 0.12, false},
+            {L"Sniper", L"AWP | Dragon Lore", 0.18, false},
+            {L"Pistol", L"USP-S | Kill Confirmed", 0.16, false},
+            {L"Pistol", L"Desert Eagle | Blaze", 0.03, false},
+            {L"Knife", L"Karambit | Doppler", 0.02, false},
+            {L"Gloves", L"Sport Gloves | Pandora's Box", 0.22, false}
+        }},
+        {L"ZywOo-inspired", {
+            {L"Rifle", L"AK-47 | Bloodsport", 0.11, false},
+            {L"Rifle", L"M4A1-S | Hot Rod", 0.04, false},
+            {L"Sniper", L"AWP | Asiimov", 0.19, false},
+            {L"Pistol", L"Glock-18 | Fade", 0.02, false},
+            {L"Pistol", L"Desert Eagle | Code Red", 0.14, false},
+            {L"Knife", L"Butterfly Knife | Slaughter", 0.08, false},
+            {L"Gloves", L"Sport Gloves | Vice", 0.20, false}
+        }},
+        {L"donk-inspired", {
+            {L"Rifle", L"AK-47 | Neon Rider", 0.09, false},
+            {L"Rifle", L"M4A1-S | Decimator", 0.13, false},
+            {L"Sniper", L"AWP | Neo-Noir", 0.10, false},
+            {L"Pistol", L"Glock-18 | Vogue", 0.08, false},
+            {L"Pistol", L"Desert Eagle | Printstream", 0.12, false},
+            {L"Knife", L"Butterfly Knife | Doppler", 0.03, false},
+            {L"Gloves", L"Specialist Gloves | Fade", 0.18, false}
+        }},
+        {L"m0NESY-inspired", {
+            {L"Rifle", L"AK-47 | Inheritance", 0.10, false},
+            {L"Rifle", L"M4A1-S | Golden Coil", 0.15, false},
+            {L"Sniper", L"AWP | Gungnir", 0.07, false},
+            {L"Pistol", L"Glock-18 | Gamma Doppler", 0.04, false},
+            {L"Pistol", L"USP-S | Orion", 0.09, false},
+            {L"Knife", L"Karambit | Marble Fade", 0.03, false},
+            {L"Gloves", L"Driver Gloves | King Snake", 0.16, false}
+        }},
+        {L"NiKo-inspired", {
+            {L"Rifle", L"AK-47 | Fire Serpent", 0.18, false},
+            {L"Rifle", L"M4A1-S | Icarus Fell", 0.05, false},
+            {L"Sniper", L"AWP | Medusa", 0.20, false},
+            {L"Pistol", L"Desert Eagle | Blaze", 0.02, false},
+            {L"Pistol", L"USP-S | Kill Confirmed", 0.14, false},
+            {L"Knife", L"Butterfly Knife | Fade", 0.01, false},
+            {L"Gloves", L"Sport Gloves | Hedge Maze", 0.24, false}
+        }},
+        {L"ropz-inspired", {
+            {L"Rifle", L"AK-47 | Vulcan", 0.10, false},
+            {L"Rifle", L"M4A1-S | Blue Phosphor", 0.03, false},
+            {L"Sniper", L"AWP | Lightning Strike", 0.02, false},
+            {L"Pistol", L"USP-S | Neo-Noir", 0.11, false},
+            {L"Pistol", L"Desert Eagle | Cobalt Disruption", 0.05, false},
+            {L"Knife", L"M9 Bayonet | Doppler", 0.03, false},
+            {L"Gloves", L"Specialist Gloves | Crimson Kimono", 0.21, false}
+        }}
+    };
+    return data;
+}
+void applyPreset() {
+    int index = (int)SendMessageW(g_preset, CB_GETCURSEL, 0, 0);
+    if (index < 0 || index >= (int)presets().size()) return;
+    g_items = presets()[index].items;
+    refreshList();
+    status(std::wstring(presets()[index].player) + L" preset loaded (inspired set, not a verified player inventory).");
+}
 void refreshList() {
     SendMessageW(g_list, LB_RESETCONTENT, 0, 0);
     for (const auto& x : g_items) {
@@ -140,15 +207,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         addControl(hwnd, L"BUTTON", L"StatTrak", BS_AUTOCHECKBOX, 170, 108, 120, 26, IDC_STATTRAK);
         g_stattrak = GetDlgItem(hwnd, IDC_STATTRAK);
         addControl(hwnd, L"BUTTON", L"Add item", BS_PUSHBUTTON, 320, 106, 92, 30, IDC_ADD);
-        addControl(hwnd, L"STATIC", L"Current loadout", 0, 18, 154, 160, 22, 0);
-        addControl(hwnd, L"LISTBOX", L"", WS_BORDER | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT, 18, 180, 498, 220, IDC_LIST);
+        addControl(hwnd, L"STATIC", L"Pro player-inspired preset", 0, 18, 150, 210, 22, 0);
+        addControl(hwnd, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, 18, 174, 250, 180, IDC_PRESET);
+        g_preset = GetDlgItem(hwnd, IDC_PRESET);
+        for (const auto& p : presets()) SendMessageW(g_preset, CB_ADDSTRING, 0, (LPARAM)p.player);
+        SendMessageW(g_preset, CB_SETCURSEL, 0, 0);
+        addControl(hwnd, L"BUTTON", L"Apply preset", BS_PUSHBUTTON, 286, 172, 112, 30, IDC_APPLY_PRESET);
+        addControl(hwnd, L"STATIC", L"Current loadout", 0, 18, 214, 160, 22, 0);
+        addControl(hwnd, L"LISTBOX", L"", WS_BORDER | WS_VSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT, 18, 240, 498, 180, IDC_LIST);
         g_list = GetDlgItem(hwnd, IDC_LIST);
-        addControl(hwnd, L"BUTTON", L"Remove selected", BS_PUSHBUTTON, 18, 416, 130, 30, IDC_REMOVE);
-        addControl(hwnd, L"BUTTON", L"Save profile", BS_PUSHBUTTON, 166, 416, 110, 30, IDC_SAVE);
-        addControl(hwnd, L"BUTTON", L"Load profile", BS_PUSHBUTTON, 294, 416, 110, 30, IDC_LOAD);
-        addControl(hwnd, L"BUTTON", L"Clear all", BS_PUSHBUTTON, 422, 416, 94, 30, IDC_CLEAR);
+        addControl(hwnd, L"BUTTON", L"Remove selected", BS_PUSHBUTTON, 18, 432, 130, 30, IDC_REMOVE);
+        addControl(hwnd, L"BUTTON", L"Save profile", BS_PUSHBUTTON, 166, 432, 110, 30, IDC_SAVE);
+        addControl(hwnd, L"BUTTON", L"Load profile", BS_PUSHBUTTON, 294, 432, 110, 30, IDC_LOAD);
+        addControl(hwnd, L"BUTTON", L"Clear all", BS_PUSHBUTTON, 422, 432, 94, 30, IDC_CLEAR);
         g_status = CreateWindowExW(0, L"STATIC", L"Items in loadout: 0", WS_CHILD | WS_VISIBLE,
-                                   18, 458, 498, 24, hwnd, (HMENU)IDC_STATUS, GetModuleHandleW(nullptr), nullptr);
+                                   18, 474, 498, 24, hwnd, (HMENU)IDC_STATUS, GetModuleHandleW(nullptr), nullptr);
         for (HWND child = GetWindow(hwnd, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
             SendMessageW(child, WM_SETFONT, (WPARAM)font, TRUE);
         return 0;
@@ -175,7 +248,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (i != LB_ERR && i < (int)g_items.size()) g_items.erase(g_items.begin() + i);
             refreshList(); return 0;
         }
-        case IDC_SAVE: saveProfile(hwnd); return 0;
+        case IDC_APPLY_PRESET: applyPreset(); return 0;\n        case IDC_SAVE: saveProfile(hwnd); return 0;
         case IDC_LOAD: loadProfile(hwnd); return 0;
         case IDC_CLEAR: g_items.clear(); refreshList(); return 0;
         }
@@ -196,7 +269,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     if (!RegisterClassW(&wc)) return 1;
     HWND hwnd = CreateWindowExW(0, CLASS_NAME, L"Vesta Skin Loadout Manager",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-        CW_USEDEFAULT, CW_USEDEFAULT, 552, 540, nullptr, nullptr, instance, nullptr);
+        CW_USEDEFAULT, CW_USEDEFAULT, 552, 560, nullptr, nullptr, instance, nullptr);
     if (!hwnd) return 1;
     ShowWindow(hwnd, show); UpdateWindow(hwnd);
     MSG msg{};
