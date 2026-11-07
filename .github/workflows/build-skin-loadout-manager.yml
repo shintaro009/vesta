@@ -7,6 +7,12 @@ on:
     paths:
       - "tools/skin-loadout-manager/**"
       - ".github/workflows/build-skin-loadout-manager.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "tools/skin-loadout-manager/**"
+      - ".github/workflows/build-skin-loadout-manager.yml"
   workflow_dispatch:
 
 permissions:
