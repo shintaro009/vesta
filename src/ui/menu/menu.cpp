@@ -240,7 +240,7 @@ void menu_t::draw_sidebar()
         }
     }
 
-    static constexpr const char* labels[]{"Aimbot", "Triggerbot", "Visuals", "Misc", "Loadouts"};
+    static constexpr const char* labels[]{"Aimbot", "Triggerbot", "Visuals", "Misc", "Skin Changer"};
     ImGui::SetCursorPos({20.0f, 112.0f});
     for (int i = 0; i < 5; ++i)
     {
