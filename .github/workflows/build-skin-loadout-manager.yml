@@ -1,0 +1,41 @@
+name: Build Skin Loadout Manager
+
+on:
+  push:
+    branches:
+      - feature/standalone-skin-loadout-manager
+    paths:
+      - "tools/skin-loadout-manager/**"
+      - ".github/workflows/build-skin-loadout-manager.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "tools/skin-loadout-manager/**"
+      - ".github/workflows/build-skin-loadout-manager.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Compile standalone Windows app
+        shell: cmd
+        run: |
+          if not exist dist mkdir dist
+          cl /nologo /std:c++20 /EHsc /O2 /DUNICODE /D_UNICODE tools\\skin-loadout-manager\\main.cpp /link /SUBSYSTEM:WINDOWS comctl32.lib comdlg32.lib user32.lib gdi32.lib /OUT:dist\\VestaSkinLoadoutManager.exe
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: VestaSkinLoadoutManager-windows-x64
+          path: dist/VestaSkinLoadoutManager.exe
+          if-no-files-found: error
